@@ -1,45 +1,38 @@
-# Project Name
+% 1. Read and Resize
+img = imread('91_img_.png'); 
+img_resized = imresize(img, [480, 640]); 
 
-### Project Description:
-#### Summary - 
+% 2. Color Cast Removal (Independent Channel Stretching)
+R = imadjust(img_resized(:,:,1), stretchlim(img_resized(:,:,1), [0.005 0.995]));
+G = imadjust(img_resized(:,:,2), stretchlim(img_resized(:,:,2), [0.005 0.995]));
+B = imadjust(img_resized(:,:,3), stretchlim(img_resized(:,:,3), [0.005 0.995]));
+img_color = cat(3, R, G, B);
 
-#### Course concepts used - 
-1. -
-2. -
-3. -
-   
-#### Additional concepts used -
-1. -
-2. -
-   
-#### Dataset - 
-Link and/or Explanation if generated
+% 3. Contrast Enhancement (HSV Color Space)
+img_hsv = rgb2hsv(img_color);
+img_hsv(:,:,3) = adapthisteq(img_hsv(:,:,3), 'NumTiles', [8 8], 'ClipLimit', 0.015);
+img_contrast = hsv2rgb(img_hsv);
 
-#### Novelty - 
-1. -
-2. -
-3. -
-   
-### Contributors:
-1. Name (SRN)
-2. Name (SRN)
+% 4. Denoising (Median Filter)
+img_denoised = zeros(size(img_contrast), 'like', img_contrast);
+for ch = 1:3
+    img_denoised(:,:,ch) = medfilt2(img_contrast(:,:,ch), [3 3]);
+end
 
-### Steps:
-1. Clone Repository
-```git clone <repo-url>```
+% 5. Sharpening (Unsharp Masking)
+img_final = imsharpen(img_denoised, 'Radius', 1.5, 'Amount', 1.2, 'Threshold', 0.02);
 
-2. Install Dependencies
-```pip install -r requirements.txt```
+% 6. Display Pipeline Results
+figure;
+subplot(2, 2, 1); imshow(img_resized);  title('1. Original');
+subplot(2, 2, 2); imshow(img_color);    title('2. Color Corrected');
+subplot(2, 2, 3); imshow(img_contrast); title('3. CLAHE Contrast');
+subplot(2, 2, 4); imshow(img_final);    title('4. Final (Denoised + Sharp)');
 
-3. Run the Code
-```python main.py```
+% 7. Evaluation Metrics
+% PSNR & SSIM evaluate how much the image changed from the original.
+psnr_val = psnr(img_denoised_uint8, img_resized);
+ssim_val = ssim(img_denoised_uint8, img_resized);
 
-### Outputs:
-* Important intermediate steps
-* Final output images 
-
-### References:
-1. -
-2. -
-   
-### Limitations and Future Work:
+fprintf('PSNR (Peak Signal-to-Noise Ratio): %.2f dB\n', psnr_val);
+fprintf('SSIM (Structural Similarity Index): %.4f (closer to 1 is better)\n\n', ssim_val);
